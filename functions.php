@@ -97,8 +97,8 @@ function getRecommendedFutsalsByLocation($userLocation, $futsals) {
         foreach ($futsals as $futsal) {
             $distance = calculateDistance($userLat, $userLng, $futsal['lat'], $futsal['lng']);
             
-            // Only include futsals within 2km radius
-            if ($distance <= 2.0) {
+            // Only include futsals within 5km radius
+            if ($distance <= 5.0) {
                 $isRecommended = $futsal['rating'] >= 4.3 && $futsal['price'] <= 1500;
                 
                 $results[] = [

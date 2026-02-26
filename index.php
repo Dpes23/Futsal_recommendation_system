@@ -330,28 +330,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <?php if ($submitted): ?>
-        <h2>Top 5 Nearest Futsals</h2>
+        <div class="results-section">
+            <h2>Top 5 Nearest Futsals</h2>
 
-        <?php if (empty($results)): ?>
-            <p>No results found.</p>
-        <?php else: ?>
-            <?php foreach ($results as $f): ?>
-                <div class="result-card">
-                    <div class="card-content">
-                        <h3><?= htmlspecialchars($f['name']) ?></h3>
-                        <p>
-                            <strong>Location:</strong> <?= htmlspecialchars($f['address']) ?><br>
-                            <strong>Distance:</strong> <span class="distance"><?= number_format($f['distance'], 1) ?> km</span><br>
-                            <strong>Price:</strong> Rs. <?= number_format($f['price']) ?>/hour<br>
-                            <strong>Rating:</strong> <?= $f['rating'] ?> ★
-                        </p>
+            <?php if (empty($results)): ?>
+                <p>No results found.</p>
+            <?php else: ?>
+                <?php foreach ($results as $index => $f): ?>
+                    <div class="result-card">
+                        <div class="card-content">
+                            <h3><?= htmlspecialchars($f['name']) ?></h3>
+                            <p>
+                                <strong>Location:</strong> <?= htmlspecialchars($f['address']) ?><br>
+                                <strong>Distance:</strong> <span class="distance" data-futsal-name="<?= htmlspecialchars($f['name']) ?>"><?= number_format($f['distance'], 1) ?> km</span><br>
+                                <strong>Price:</strong> Rs. <?= number_format($f['price']) ?>/hour<br>
+                                <strong>Rating:</strong> <?= $f['rating'] ?> ★
+                            </p>
+                        </div>
+                        <?php if (isset($f['isRecommended']) && $f['isRecommended']): ?>
+                            <span class="recommended-badge">Recommended</span>
+                        <?php endif; ?>
                     </div>
-                    <?php if (isset($f['isRecommended']) && $f['isRecommended']): ?>
-                        <span class="recommended-badge">Recommended</span>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -463,13 +465,13 @@ function displayResults(results, locationName) {
     resultsSection.className = 'results-section';
     resultsSection.innerHTML = `
         <h2>Top 5 Nearest Futsals from ${locationName}</h2>
-        ${results.map(f => `
+        ${results.map((f, index) => `
             <div class="result-card">
                 <div class="card-content">
                     <h3>${f.name}</h3>
                     <p>
                         <strong>Location:</strong> ${f.address}<br>
-                        <strong>Distance:</strong> <span class="distance" onclick="showMap('${f.name}')">${f.distance.toFixed(1)} km</span><br>
+                        <strong>Distance:</strong> <span class="distance" data-futsal-index="${index}">${f.distance.toFixed(1)} km</span><br>
                         <strong>Price:</strong> Rs. ${f.price.toLocaleString()}/hour<br>
                         <strong>Rating:</strong> ${f.rating} ★
                     </p>
@@ -480,6 +482,15 @@ function displayResults(results, locationName) {
     `;
     
     container.appendChild(resultsSection);
+    
+    // Add event listeners using event delegation
+    resultsSection.addEventListener('click', function(e) {
+        if (e.target.classList.contains('distance')) {
+            const futsalIndex = e.target.getAttribute('data-futsal-index');
+            const selectedFutsal = results[futsalIndex];
+            showMap(selectedFutsal.name);
+        }
+    });
 }
 
 function showMap(futsalName) {
@@ -527,6 +538,27 @@ window.onclick = function(event) {
         modal.style.display = 'none';
     }
 }
+
+// Global event listener for all distance clicks (PHP and JS rendered)
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('distance')) {
+        let futsalName = null;
+        
+        // Try to get futsal name from data attribute (PHP rendered)
+        if (e.target.getAttribute('data-futsal-name')) {
+            futsalName = e.target.getAttribute('data-futsal-name');
+        }
+        // Try to get from results array (JS rendered)
+        else if (e.target.getAttribute('data-futsal-index')) {
+            // This will be handled by the existing displayResults listener
+            return;
+        }
+        
+        if (futsalName) {
+            showMap(futsalName);
+        }
+    }
+});
 </script>
 
 </body>

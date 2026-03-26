@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
+    is_admin TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -34,10 +35,10 @@ CREATE TABLE IF NOT EXISTS bookings (
 );
 
 -- Insert sample users (password: 'password123' hashed)
-INSERT IGNORE INTO users (username, email, password, full_name) VALUES
-('admin', 'admin@futsal.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'Admin User'),
-('john_doe', 'john@example.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'John Doe'),
-('jane_smith', 'jane@example.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'Jane Smith');
+INSERT IGNORE INTO users (username, email, password, full_name, is_admin) VALUES
+('admin', 'admin@futsal.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'Admin User', 1),
+('john_doe', 'john@example.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'John Doe', 0),
+('jane_smith', 'jane@example.com', '$2y$12$FdwhGhu/SV4Ku6MmupOpdu8QjZ5WUyz08lRozKDevbbMd1qc3POi2', 'Jane Smith', 0);
 
 -- Show the created tables
 SHOW TABLES;

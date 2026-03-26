@@ -145,7 +145,7 @@ function calculateTextSimilarity($str1, $str2) {
 
 // Booking functions
 function createBooking($userId, $futsalName, $futsalAddress, $date, $time, $duration, $totalPrice) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -165,17 +165,41 @@ function createBooking($userId, $futsalName, $futsalAddress, $date, $time, $dura
 }
 
 function processPrepayment($bookingId, $userId) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
+        // First check if the booking exists and belongs to the user
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND user_id = ?");
+        $checkStmt->execute([$bookingId, $userId]);
+        
+        if (!$checkStmt->fetch()) {
+            error_log("Booking not found for ID: $bookingId, User: $userId");
+            return false;
+        }
+        
+        // Now update the prepayment status
         $stmt = $pdo->prepare("
             UPDATE bookings 
             SET prepayment_status = 'paid' 
-            WHERE id = ? AND user_id = ? AND prepayment_status = 'pending'
+            WHERE id = ?
         ");
         
-        return $stmt->execute([$bookingId, $userId]);
+        $result = $stmt->execute([$bookingId]);
+        
+        if (!$result) {
+            error_log("Prepayment update failed for booking ID: $bookingId");
+            return false;
+        }
+        
+        $rowsAffected = $stmt->rowCount();
+        
+        if ($rowsAffected === 0) {
+            error_log("No rows updated for booking ID: $bookingId");
+            return false;
+        }
+        
+        return true;
         
     } catch(PDOException $e) {
         error_log("Prepayment processing error: " . $e->getMessage());
@@ -184,7 +208,7 @@ function processPrepayment($bookingId, $userId) {
 }
 
 function getBookingWithPrepayment($bookingId, $userId) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -203,7 +227,7 @@ function getBookingWithPrepayment($bookingId, $userId) {
 }
 
 function getUserBookings($userId) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -223,7 +247,7 @@ function getUserBookings($userId) {
 }
 
 function isTimeSlotAvailable($futsalName, $date, $time, $duration) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -265,7 +289,7 @@ function isTimeSlotAvailable($futsalName, $date, $time, $duration) {
 }
 
 function cancelBooking($bookingId, $userId = null) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -294,7 +318,7 @@ function cancelBooking($bookingId, $userId = null) {
 }
 
 function getAllBookings() {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -314,7 +338,7 @@ function getAllBookings() {
 }
 
 function getAllUsers() {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -333,7 +357,7 @@ function getAllUsers() {
 }
 
 function removeUser($userId) {
-    require_once 'database.php';
+    require_once __DIR__ . '/../config/database.php';
     $pdo = getDatabaseConnection();
     
     try {
@@ -358,3 +382,4 @@ function removeUser($userId) {
         return false;
     }
 }
+?>

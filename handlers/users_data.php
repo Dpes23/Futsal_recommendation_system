@@ -44,4 +44,23 @@
     'password' => 'diyog123',
     'created_at' => '2026-02-28 07:30:44',
   ),
+  5 => 
+  array (
+    'id' => 6,
+    'full_name' => 'Dipesh Pudasaini',
+    'username' => 'dpes2680',
+    'email' => 'angellenovo51@gmail.com',
+    'password' => 'dpes321',
+    'created_at' => '2026-02-28 17:39:47',
+  ),
+  6 => 
+  array (
+    'id' => 7,
+    'full_name' => 'Dipesh Pudasaini',
+    'username' => 'dpes2681',
+    'email' => 'angellenovo51@gmail.com',
+    'password' => 'dpes2681',
+    'created_at' => '2026-02-28 17:51:00',
+  ),
 );
+?>

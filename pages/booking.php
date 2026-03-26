@@ -3,27 +3,28 @@ session_start();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /login');
     exit();
 }
 
-require_once 'functions.php';
-$futsals = include 'futsals_data.php';
+require_once __DIR__ . '/../includes/functions.php';
+$futsals = include __DIR__ . '/../handlers/futsals_data.php';
 
 $bookingSuccess = false;
 $bookingError = '';
 $selectedFutsal = null;
 $prepaymentPaid = false;
+$bookingId = 0;
 
 // Handle prepayment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_prepayment'])) {
-    $bookingId = $_POST['booking_id'] ?? '';
+    $bookingId = intval($_POST['booking_id'] ?? 0);
     
-    if ($bookingId && processPrepayment($bookingId, $_SESSION['user_id'])) {
+    if ($bookingId > 0 && processPrepayment($bookingId, $_SESSION['user_id'])) {
         $prepaymentPaid = true;
         $prepaymentMessage = "Prepayment of Rs. 100 paid successfully!";
     } else {
-        $prepaymentError = "Failed to process prepayment. Please try again.";
+        $prepaymentError = "Failed to process prepayment. Please try again. (Booking ID: " . $bookingId . ")";
     }
 }
 
@@ -92,7 +93,7 @@ if (!$selectedFutsal && isset($_GET['futsal'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Futsal - Futsal Recommendation System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/style.css">
     <style>
         body {
             background-image: url('https://images.unsplash.com/photo-1541252260730-0412e8e2108e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1950&q=80');
@@ -288,7 +289,7 @@ if (!$selectedFutsal && isset($_GET['futsal'])) {
                 <h3>🏐 Book a Futsal</h3>
                 <p><?= htmlspecialchars($_SESSION['full_name']) ?></p>
             </div>
-            <a href="index.php" class="back-btn">← Back to Search</a>
+            <a href="/index" class="back-btn">← Back to Search</a>
         </div>
     </div>
     
@@ -304,7 +305,7 @@ if (!$selectedFutsal && isset($_GET['futsal'])) {
             <p>Your prepayment of Rs. 100 has been processed successfully.</p>
             <p>Your booking is now confirmed and ready to use!</p>
             <div style="text-align: center; margin-top: 20px;">
-                <a href="my_bookings.php" class="book-btn" style="display: inline-block; width: auto;">📅 View My Bookings</a>
+                <a href="/my_bookings" class="book-btn" style="display: inline-block; width: auto;">📅 View My Bookings</a>
             </div>
         </div>
     <?php elseif ($bookingSuccess): ?>
@@ -331,7 +332,7 @@ if (!$selectedFutsal && isset($_GET['futsal'])) {
         </div>
         
         <div style="text-align: center; margin-top: 20px;">
-            <a href="index.php" class="book-btn" style="display: inline-block; width: auto;">Book Another Futsal</a>
+            <a href="/index" class="book-btn" style="display: inline-block; width: auto;">Book Another Futsal</a>
         </div>
         
     <?php else: ?>
@@ -404,7 +405,7 @@ if (!$selectedFutsal && isset($_GET['futsal'])) {
             <div style="text-align: center; padding: 40px;">
                 <h3>No Futsal Selected</h3>
                 <p>Please go back and select a futsal to book.</p>
-                <a href="index.php" class="book-btn" style="display: inline-block; width: auto; margin-top: 20px;">Search Futsals</a>
+                <a href="/index" class="book-btn" style="display: inline-block; width: auto; margin-top: 20px;">Search Futsals</a>
             </div>
         <?php endif; ?>
         

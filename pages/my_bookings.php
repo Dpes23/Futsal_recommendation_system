@@ -3,11 +3,11 @@ session_start();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /login');
     exit();
 }
 
-require_once 'functions.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 $userBookings = getUserBookings($_SESSION['user_id']);
 ?>
@@ -18,7 +18,7 @@ $userBookings = getUserBookings($_SESSION['user_id']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Bookings - Futsal Recommendation System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/style.css">
     <style>
         body {
             background-image: url('https://images.unsplash.com/photo-1541252260730-0412e8e2108e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1950&q=80');
@@ -206,8 +206,8 @@ $userBookings = getUserBookings($_SESSION['user_id']);
                 <p><?= htmlspecialchars($_SESSION['full_name']) ?></p>
             </div>
             <div>
-                <a href="index.php" class="nav-btn">🔍 Search Futsals</a>
-                <a href="logout.php" class="nav-btn">Logout</a>
+                <a href="/index" class="nav-btn">🔍 Search Futsals</a>
+                <a href="/logout" class="nav-btn">Logout</a>
             </div>
         </div>
     </div>
@@ -219,7 +219,7 @@ $userBookings = getUserBookings($_SESSION['user_id']);
             <h3>No bookings yet</h3>
             <p>You haven't made any futsal bookings yet. Start by searching for futsals and booking your preferred time slots!</p>
             <br>
-            <a href="index.php" class="book-now-btn">🔍 Find Futsals to Book</a>
+            <a href="/index" class="book-now-btn">🔍 Find Futsals to Book</a>
         </div>
     <?php else: ?>
         <?php foreach ($userBookings as $booking): ?>

@@ -3,21 +3,30 @@ session_start();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /login');
     exit();
 }
 
-// Check if user is admin
-if ($_SESSION['username'] !== 'admin') {
-    header('Location: index.php');
-    exit();
-}
-
-require_once 'functions.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 // Get database statistics
-require_once 'database.php';
+require_once __DIR__ . '/../config/database.php';
 $pdo = getDatabaseConnection();
+
+// Check if user is admin
+try {
+    $stmt = $pdo->prepare("SELECT is_admin FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $userCheck = $stmt->fetch();
+    
+    if (!$userCheck || !$userCheck['is_admin']) {
+        header('Location: /index');
+        exit();
+    }
+} catch(PDOException $e) {
+    header('Location: /index');
+    exit();
+}
 
 try {
     // Get total bookings count
@@ -74,6 +83,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_user'])) {
     }
 }
 
+// Handle creating new admin credentials
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_admin'])) {
+    $adminUsername = $_POST['admin_username'] ?? '';
+    $adminPassword = $_POST['admin_password'] ?? '';
+    $adminPassword2 = $_POST['admin_password2'] ?? '';
+    $adminFullName = $_POST['admin_fullname'] ?? '';
+    $adminEmail = $_POST['admin_email'] ?? '';
+    
+    $adminErrors = [];
+    
+    // Validation
+    if (empty($adminUsername)) {
+        $adminErrors[] = "Username is required";
+    } elseif (strlen($adminUsername) < 3) {
+        $adminErrors[] = "Username must be at least 3 characters";
+    }
+    
+    if (empty($adminFullName)) {
+        $adminErrors[] = "Full Name is required";
+    }
+    
+    if (empty($adminEmail) || !filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+        $adminErrors[] = "Valid email is required";
+    }
+    
+    if (empty($adminPassword)) {
+        $adminErrors[] = "Password is required";
+    } elseif (strlen($adminPassword) < 6) {
+        $adminErrors[] = "Password must be at least 6 characters";
+    }
+    
+    if ($adminPassword !== $adminPassword2) {
+        $adminErrors[] = "Passwords do not match";
+    }
+    
+    if (empty($adminErrors)) {
+        try {
+            // Check if username already exists
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$adminUsername]);
+            
+            if ($stmt->rowCount() > 0) {
+                $adminErrors[] = "Username already exists";
+            } else {
+                // Create new admin user
+                $hashedPassword = password_hash($adminPassword, PASSWORD_BCRYPT);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, full_name, email, is_admin) VALUES (?, ?, ?, ?, 1)");
+                
+                if ($stmt->execute([$adminUsername, $hashedPassword, $adminFullName, $adminEmail])) {
+                    $adminMessage = "✅ New admin account created successfully! Username: <strong>$adminUsername</strong>";
+                } else {
+                    $adminErrors[] = "Failed to create admin account. Please try again.";
+                }
+            }
+        } catch(PDOException $e) {
+            $adminErrors[] = "Database error: " . $e->getMessage();
+        }
+    }
+}
+
 $allBookings = getAllBookings();
 $allUsers = getAllUsers();
 ?>
@@ -84,7 +153,7 @@ $allUsers = getAllUsers();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Manage Bookings</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/style.css">
     <style>
         body {
             background-image: url('https://images.unsplash.com/photo-1541252260730-0412e8e2108e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1950&q=80');
@@ -249,34 +318,6 @@ $allUsers = getAllUsers();
             display: inline-block;
         }
         
-        .cancel-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .remove-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
         .remove-btn:hover {
             background: #c82333;
             transform: translateY(-1px);
@@ -368,13 +409,13 @@ $allUsers = getAllUsers();
     <div class="admin-header">
         <div class="user-info">
             <div class="user-details">
-                <h3>🔧 Admin Dashboard</h3>
+                <h3>🏐 Admin Dashboard</h3>
                 <p>Database Overview & Management</p>
             </div>
             <div>
-                <a href="index.php" class="nav-btn">🔍 Search Futsals</a>
-                <a href="my_bookings.php" class="nav-btn">📅 My Bookings</a>
-                <a href="?logout=true" class="nav-btn">Logout</a>
+                <a href="/index" class="nav-btn">🔍 Search Futsals</a>
+                <a href="/my_bookings" class="nav-btn">📅 My Bookings</a>
+                <a href="/logout" class="nav-btn">Logout</a>
             </div>
         </div>
     </div>
@@ -408,6 +449,7 @@ $allUsers = getAllUsers();
         <button class="tab-btn active" onclick="showTab('stats')">📊 Statistics</button>
         <button class="tab-btn" onclick="showTab('bookings')">📅 Bookings</button>
         <button class="tab-btn" onclick="showTab('users')">👥 Users</button>
+        <button class="tab-btn" onclick="showTab('admin')">🔐 Create Admin</button>
     </div>
     
     <!-- Statistics Tab -->
@@ -484,15 +526,7 @@ $allUsers = getAllUsers();
                     </div>
                     
                     <div class="detail-item">
-                        <div class="detail-label">� Prepayment</div>
-                        <div class="detail-value">
-                            Rs. <?= number_format($booking['prepayment_amount'] ?? 100) ?> 
-                            (<?= ($booking['prepayment_status'] ?? 'pending') === 'paid' ? '✅ Paid' : '⏳ Pending' ?>)
-                        </div>
-                    </div>
-                    
-                    <div class="detail-item">
-                        <div class="detail-label">�📋 Status</div>
+                        <div class="detail-label">📋 Status</div>
                         <div class="detail-value">
                             <span class="status-badge status-<?= $booking['status'] ?>">
                                 <?= $booking['status'] ?>
@@ -571,51 +605,80 @@ $allUsers = getAllUsers();
         <?php endif; ?>
     </div>
     
-    <!-- Users Tab -->
-    <div id="users-tab" class="tab-content">
-        <h2>👥 Registered Users</h2>
+    <!-- Create Admin Tab -->
+    <div id="admin-tab" class="tab-content">
+        <h2>🔐 Create New Admin Account</h2>
         
-        <?php if (empty($allUsers)): ?>
-            <div class="no-bookings">
-                <h3>No users found</h3>
-                <p>There are no registered users yet.</p>
+        <?php if (isset($adminMessage)): ?>
+            <div class="success-message">
+                <?= $adminMessage ?>
             </div>
-        <?php else: ?>
-            <?php foreach ($allUsers as $user): ?>
-                <div class="booking-card">
-                    <h3><?= htmlspecialchars($user['full_name']) ?> (@<?= htmlspecialchars($user['username']) ?>)</h3>
-                    
-                    <div class="booking-details">
-                        <div class="detail-item">
-                            <div class="detail-label">📧 Email</div>
-                            <div class="detail-value"><?= htmlspecialchars($user['email']) ?></div>
-                        </div>
-                        
-                        <div class="detail-item">
-                            <div class="detail-label">📅 Registered</div>
-                            <div class="detail-value"><?= date('M d, Y', strtotime($user['created_at'])) ?></div>
-                        </div>
-                        
-                        <div class="detail-item">
-                            <div class="detail-label">🆔 User ID</div>
-                            <div class="detail-value">#<?= str_pad($user['id'], 6, '0', STR_PAD_LEFT) ?></div>
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: right; margin-top: 15px;">
-                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                            <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to remove this user? All their bookings will be cancelled.');">
-                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                <input type="hidden" name="remove_user" value="1">
-                                <button type="submit" class="remove-btn">🗑️ Remove User</button>
-                            </form>
-                        <?php else: ?>
-                            <small style="color: #666;">Current admin user</small>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
         <?php endif; ?>
+        
+        <?php if (!empty($adminErrors)): ?>
+            <div class="error-message">
+                <strong>❌ Errors:</strong>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                    <?php foreach ($adminErrors as $error): ?>
+                        <li><?= htmlspecialchars($error) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+        
+        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: 20px auto;">
+            <form method="POST" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        👤 Full Name <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="text" name="admin_fullname" value="<?= isset($_POST['admin_fullname']) ? htmlspecialchars($_POST['admin_fullname']) : '' ?>" 
+                           style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;" 
+                           placeholder="e.g., John Admin" required>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        📧 Email <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="email" name="admin_email" value="<?= isset($_POST['admin_email']) ? htmlspecialchars($_POST['admin_email']) : '' ?>" 
+                           style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;" 
+                           placeholder="e.g., admin@futsal.com" required>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        👤 Username <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="text" name="admin_username" value="<?= isset($_POST['admin_username']) ? htmlspecialchars($_POST['admin_username']) : '' ?>" 
+                           style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;" 
+                           placeholder="e.g., admin2" required>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        🔐 Password <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="password" name="admin_password" 
+                           style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;" 
+                           placeholder="Enter password (min 6 characters)" required>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                        🔐 Confirm Password <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="password" name="admin_password2" 
+                           style="width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; box-sizing: border-box;" 
+                           placeholder="Confirm password" required>
+                </div>
+                
+                <button type="submit" name="create_admin" value="1" 
+                        style="background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 10px;">
+                    ✅ Create Admin Account
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 

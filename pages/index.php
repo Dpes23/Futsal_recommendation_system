@@ -3,19 +3,19 @@ session_start();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /login');
     exit();
 }
 
 // Handle logout
 if (isset($_GET['logout'])) {
     session_destroy();
-    header('Location: login.php');
+    header('Location: /login');
     exit();
 }
 
-require_once 'functions.php';
-$futsals = include 'futsals_data.php';
+require_once __DIR__ . '/../includes/functions.php';
+$futsals = include __DIR__ . '/../handlers/futsals_data.php';
 
 // Default location
 $userLocation = '';
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Futsal Recommendation System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body {
@@ -247,6 +247,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             right: 15px;
         }
         
+        .book-btn {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .book-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+            text-decoration: none;
+            color: white;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -298,7 +321,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h3>👋 Welcome, <?= htmlspecialchars($_SESSION['full_name']) ?>!</h3>
                 <p>@<?= htmlspecialchars($_SESSION['username']) ?></p>
             </div>
-            <a href="?logout=true" class="logout-btn">Logout</a>
+            <div>
+                <?php if ($_SESSION['username'] === 'admin'): ?>
+                    <a href="/admin_bookings" class="logout-btn">🔧 Admin Panel</a>
+                <?php endif; ?>
+                <a href="/my_bookings" class="logout-btn">📅 My Bookings</a>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
         </div>
     </div>
     
@@ -330,28 +359,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <?php if ($submitted): ?>
-        <h2>Top 5 Nearest Futsals</h2>
+        <div class="results-section">
+            <h2>Top 5 Nearest Futsals</h2>
 
-        <?php if (empty($results)): ?>
-            <p>No results found.</p>
-        <?php else: ?>
-            <?php foreach ($results as $f): ?>
-                <div class="result-card">
-                    <div class="card-content">
-                        <h3><?= htmlspecialchars($f['name']) ?></h3>
-                        <p>
-                            <strong>Location:</strong> <?= htmlspecialchars($f['address']) ?><br>
-                            <strong>Distance:</strong> <span class="distance"><?= number_format($f['distance'], 1) ?> km</span><br>
-                            <strong>Price:</strong> Rs. <?= number_format($f['price']) ?>/hour<br>
-                            <strong>Rating:</strong> <?= $f['rating'] ?> ★
-                        </p>
+            <?php if (empty($results)): ?>
+                <p>No results found.</p>
+            <?php else: ?>
+                <?php foreach ($results as $index => $f): ?>
+                    <div class="result-card">
+                        <div class="card-content">
+                            <h3><?= htmlspecialchars($f['name']) ?></h3>
+                            <p>
+                                <strong>Location:</strong> <?= htmlspecialchars($f['address']) ?><br>
+                                <strong>Distance:</strong> <span class="distance" data-futsal-name="<?= htmlspecialchars($f['name']) ?>"><?= number_format($f['distance'], 1) ?> km</span><br>
+                                <strong>Price:</strong> Rs. <?= number_format($f['price']) ?>/hour<br>
+                                <strong>Rating:</strong> <?= $f['rating'] ?> ★
+                            </p>
+                            <a href="/booking?futsal=<?= urlencode($f['name']) ?>" class="book-btn">Book Now</a>
+                        </div>
+                        <?php if (isset($f['isRecommended']) && $f['isRecommended']): ?>
+                            <span class="recommended-badge">Recommended</span>
+                        <?php endif; ?>
                     </div>
-                    <?php if (isset($f['isRecommended']) && $f['isRecommended']): ?>
-                        <span class="recommended-badge">Recommended</span>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -463,16 +495,17 @@ function displayResults(results, locationName) {
     resultsSection.className = 'results-section';
     resultsSection.innerHTML = `
         <h2>Top 5 Nearest Futsals from ${locationName}</h2>
-        ${results.map(f => `
+        ${results.map((f, index) => `
             <div class="result-card">
                 <div class="card-content">
                     <h3>${f.name}</h3>
                     <p>
                         <strong>Location:</strong> ${f.address}<br>
-                        <strong>Distance:</strong> <span class="distance" onclick="showMap('${f.name}')">${f.distance.toFixed(1)} km</span><br>
+                        <strong>Distance:</strong> <span class="distance" data-futsal-index="${index}">${f.distance.toFixed(1)} km</span><br>
                         <strong>Price:</strong> Rs. ${f.price.toLocaleString()}/hour<br>
                         <strong>Rating:</strong> ${f.rating} ★
                     </p>
+                    <a href="/booking?futsal=${encodeURIComponent(f.name)}" class="book-btn">Book Now</a>
                 </div>
                 ${f.isRecommended ? '<span class="recommended-badge">Recommended</span>' : ''}
             </div>
@@ -480,6 +513,15 @@ function displayResults(results, locationName) {
     `;
     
     container.appendChild(resultsSection);
+    
+    // Add event listeners using event delegation
+    resultsSection.addEventListener('click', function(e) {
+        if (e.target.classList.contains('distance')) {
+            const futsalIndex = e.target.getAttribute('data-futsal-index');
+            const selectedFutsal = results[futsalIndex];
+            showMap(selectedFutsal.name);
+        }
+    });
 }
 
 function showMap(futsalName) {
@@ -527,6 +569,27 @@ window.onclick = function(event) {
         modal.style.display = 'none';
     }
 }
+
+// Global event listener for all distance clicks (PHP and JS rendered)
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('distance')) {
+        let futsalName = null;
+        
+        // Try to get futsal name from data attribute (PHP rendered)
+        if (e.target.getAttribute('data-futsal-name')) {
+            futsalName = e.target.getAttribute('data-futsal-name');
+        }
+        // Try to get from results array (JS rendered)
+        else if (e.target.getAttribute('data-futsal-index')) {
+            // This will be handled by the existing displayResults listener
+            return;
+        }
+        
+        if (futsalName) {
+            showMap(futsalName);
+        }
+    }
+});
 </script>
 
 </body>
